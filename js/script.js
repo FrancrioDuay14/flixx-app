@@ -6,6 +6,7 @@ const global = {
     term: '',
     page: 1,
     totalPages: 1,
+    totalResults: 0,
   },
   api: {
     apiKey: '09711101b2aa2e8df09ae49ce782038f',
@@ -40,7 +41,16 @@ async function search() {
   global.search.term = urlParams.get('search-term');
 
   if (global.search.term !== '' && global.search.term !== null) {
-    const { results } = await searchAPIData();
+    const { results, total_pages, page, total_results } = await searchAPIData();
+
+    global.search.page = page;
+    global.search.totalPages = total_pages;
+    global.search.totalResults = total_results;
+
+    if (results.length === 0) {
+      showAlert('No results found');
+      return;
+    }
     displaySearchResults(results);
   } else {
     showAlert('Please enter search term');
@@ -55,7 +65,7 @@ async function searchAPIData() {
 
   showSpinner();
   const response = await fetch(
-    `${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}`
+    `${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}&page=${global.search.page}`
   );
 
   hideSpinner();
@@ -67,6 +77,10 @@ async function searchAPIData() {
 
 //get/fetch search results
 function displaySearchResults(results) {
+  //Clear previous results
+  document.querySelector('#search-results').innerHTML = '';
+  document.querySelector('#search-results-heading').innerHTML = '';
+  document.querySelector('#pagination').innerHTML = '';
   results.forEach((result) => {
     //ADd  result to dom
     const div = document.createElement('div');
@@ -99,8 +113,15 @@ function displaySearchResults(results) {
           }</small>
         </p>
       </div> `;
+
+    document.querySelector('#search-results-heading').innerHTML = `
+          <h2>${results.length} of ${global.search.totalResults} Results for ${global.search.term}</h2>
+      `;
+
     document.getElementById('search-results').appendChild(div);
   });
+
+  displayPagination();
 }
 //get/fetch popular movies
 async function displayPopularMovies() {
@@ -308,6 +329,40 @@ async function displayShowDetails() {
   document.querySelector('#show-details').appendChild(div);
 }
 
+//Pagintation
+function displayPagination() {
+  const div = document.createElement('div');
+  div.classList.add('pagination');
+  div.innerHTML = `
+    <div class="pagination">
+      <button class="btn btn-primary" id="prev">Prev</button>
+      <button class="btn btn-primary" id="next">Next</button>
+      <div class="page-counter">${global.search.page}  of ${global.search.totalPages}</div>
+  </div>
+  `;
+
+  document.querySelector('#pagination').appendChild(div);
+
+  if (global.search.page === 1) {
+    document.querySelector('#prev').disabled = true;
+  }
+  if (global.search.page === global.search.totalPages) {
+    document.querySelector('#next').disabled = true;
+  }
+
+  //Next page
+  document.querySelector('#next').addEventListener('click', async () => {
+    global.search.page++;
+    const { results, total_pages } = await searchAPIData();
+    displaySearchResults(results);
+  });
+  document.querySelector('#prev').addEventListener('click', async () => {
+    global.search.page--;
+    const { results, total_pages } = await searchAPIData();
+    displaySearchResults(results);
+  });
+}
+
 //Display slider
 async function displaySlider() {
   const { results } = await fetchAPIData(`movie/now_playing`);
@@ -383,7 +438,7 @@ function numberWithCommas(number) {
   return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-function showAlert(message, className) {
+function showAlert(message, className = 'error') {
   const alertEl = document.createElement('div');
   alertEl.classList.add('alert', className);
   alertEl.appendChild(document.createTextNode(message));
