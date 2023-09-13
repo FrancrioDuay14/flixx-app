@@ -37,6 +37,7 @@ async function search() {
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
 
+  // console.log(urlParams);
   global.search.type = urlParams.get('type');
   global.search.term = urlParams.get('search-term');
 
